@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor — Smart Greenhouse Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --soil-950:#0f1710;
+    --soil-900:#16211a;
+    --soil-800:#1d2b22;
+    --leaf-700:#2f6d4a;
+    --leaf-500:#4f9d68;
+    --leaf-300:#8fce9e;
+    --chlorophyll:#a8e063;
+    --amber-warn:#e0a83a;
+    --clay-alert:#d9694f;
+    --mist:#cfe3d4;
+    --mist-dim:#8fa896;
+    --line:rgba(207,227,212,0.12);
+    --display: "Fraunces", "Iowan Old Style", serif;
+    --body: "Inter", -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", monospace;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background:
+      radial-gradient(ellipse 90% 60% at 15% -10%, rgba(79,157,104,0.16), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 100% 0%, rgba(168,224,99,0.08), transparent 60%),
+      var(--soil-950);
+    color:var(--mist);
+    font-family:var(--body);
+    min-height:100vh;
+    padding: 32px 20px 80px;
+  }
+
+  .wrap{ max-width:1180px; margin:0 auto; }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex; justify-content:space-between; align-items:flex-end; gap:20px;
+    padding-bottom:28px; margin-bottom:32px;
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .brand-mark{
+    width:44px; height:44px; border-radius:11px;
+    background:linear-gradient(155deg, var(--leaf-500), var(--leaf-700));
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 1px rgba(168,224,99,0.25), 0 8px 24px -8px rgba(79,157,104,0.6);
+    flex-shrink:0;
+  }
+  .brand-mark svg{ width:24px; height:24px; }
+  h1{
+    font-family:var(--display); font-weight:600; font-size:1.7rem;
+    color:#eef7ef; letter-spacing:-0.01em; line-height:1;
+  }
+  .brand-sub{ font-size:0.78rem; color:var(--mist-dim); margin-top:5px; letter-spacing:0.02em; }
+
+  .clock-block{ text-align:right; }
+  .clock-label{ font-size:0.68rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--mist-dim); margin-bottom:4px;}
+  #liveClock{ font-family:var(--mono); font-size:1.05rem; color:var(--chlorophyll); }
+
+  /* ---------- Layout grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: 380px 1fr;
+    gap:24px;
+    align-items:start;
+  }
+  @media (max-width:920px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:linear-gradient(180deg, var(--soil-900), var(--soil-800));
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:24px;
+  }
+  .panel + .panel{ margin-top:24px; }
+
+  .panel-title{
+    font-family:var(--display); font-size:1.05rem; font-weight:600;
+    color:#eef7ef; margin-bottom:4px;
+  }
+  .panel-eyebrow{
+    font-size:0.68rem; text-transform:uppercase; letter-spacing:0.14em;
+    color:var(--leaf-300); margin-bottom:14px; display:block;
+  }
+
+  /* ---------- Form ---------- */
+  .field{ margin-bottom:18px; }
+  .field label{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:0.82rem; color:var(--mist); margin-bottom:8px;
+  }
+  .field label .unit{ color:var(--mist-dim); font-family:var(--mono); font-size:0.75rem; }
+  .field input[type=range]{
+    -webkit-appearance:none; width:100%; height:6px; border-radius:4px;
+    background:linear-gradient(90deg, var(--leaf-700), var(--line));
+    outline:none;
+  }
+  .field input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+    background:var(--chlorophyll); cursor:pointer;
+    border:3px solid var(--soil-900);
+    box-shadow:0 0 0 1px var(--leaf-500);
+  }
+  .field .readout{
+    font-family:var(--mono); font-size:1.4rem; color:var(--chlorophyll); font-weight:500;
+    margin-top:6px;
+  }
+  .field input[type=number]{
+    width:100%; background:var(--soil-950); border:1px solid var(--line);
+    border-radius:8px; color:var(--mist); padding:10px 12px; font-family:var(--mono);
+    font-size:0.95rem;
+  }
+  .field input[type=number]:focus{ outline:2px solid var(--leaf-500); outline-offset:1px; }
+
+  .btn-primary{
+    width:100%; padding:14px; margin-top:6px;
+    background:var(--chlorophyll); color:var(--soil-950);
+    border:none; border-radius:10px; font-weight:600; font-size:0.92rem;
+    font-family:var(--body); cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow:0 10px 24px -10px rgba(168,224,99,0.5);
+  }
+  .btn-primary:hover{ transform:translateY(-1px); box-shadow:0 14px 28px -10px rgba(168,224,99,0.65); }
+  .btn-primary:active{ transform:translateY(0px); }
+  .btn-primary:focus-visible{ outline:2px solid #eef7ef; outline-offset:2px; }
+
+  .auto-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:14px; padding-top:14px; border-top:1px dashed var(--line);
+    font-size:0.78rem; color:var(--mist-dim);
+  }
+  .switch{ position:relative; width:38px; height:22px; }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch-track{
+    position:absolute; inset:0; background:var(--soil-950); border:1px solid var(--line);
+    border-radius:99px; cursor:pointer; transition:0.2s;
+  }
+  .switch-track::before{
+    content:""; position:absolute; width:16px; height:16px; left:2px; top:2px;
+    background:var(--mist-dim); border-radius:50%; transition:0.2s;
+  }
+  .switch input:checked + .switch-track{ background:rgba(168,224,99,0.25); border-color:var(--leaf-500); }
+  .switch input:checked + .switch-track::before{ transform:translateX(16px); background:var(--chlorophyll); }
+
+  /* ---------- Status cards (actuators) ---------- */
+  .status-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+    gap:14px; margin-bottom:24px;
+  }
+  .status-card{
+    border-radius:14px; padding:18px; border:1px solid var(--line);
+    background:var(--soil-900);
+    transition:background 0.4s ease, border-color 0.4s ease;
+    position:relative; overflow:hidden;
+  }
+  .status-card::after{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background:var(--mist-dim); transition:background 0.4s ease;
+  }
+  .status-card.ok::after{ background:var(--chlorophyll); }
+  .status-card.warn::after{ background:var(--amber-warn); }
+  .status-card.alert::after{ background:var(--clay-alert); }
+  .status-card.ok{ background:linear-gradient(160deg, rgba(168,224,99,0.10), var(--soil-900)); border-color:rgba(168,224,99,0.3); }
+  .status-card.warn{ background:linear-gradient(160deg, rgba(224,168,58,0.12), var(--soil-900)); border-color:rgba(224,168,58,0.35); }
+  .status-card.alert{ background:linear-gradient(160deg, rgba(217,105,79,0.14), var(--soil-900)); border-color:rgba(217,105,79,0.4); animation:pulse-alert 1.8s ease-in-out infinite; }
+
+  @keyframes pulse-alert{
+    0%,100%{ box-shadow:0 0 0 0 rgba(217,105,79,0.25); }
+    50%{ box-shadow:0 0 0 6px rgba(217,105,79,0); }
+  }
+
+  .status-icon{ width:26px; height:26px; margin-bottom:10px; }
+  .status-name{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--mist-dim); margin-bottom:6px; }
+  .status-value{ font-family:var(--display); font-size:1.3rem; font-weight:600; color:#eef7ef; margin-bottom:4px; }
+  .status-detail{ font-size:0.78rem; color:var(--mist-dim); }
+
+  /* ---------- Chart ---------- */
+  .chart-wrap{ height:300px; position:relative; }
+
+  /* ---------- History log ---------- */
+  .log-table{ width:100%; border-collapse:collapse; font-size:0.85rem; }
+  .log-table thead th{
+    text-align:left; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em;
+    color:var(--mist-dim); padding:0 10px 10px; border-bottom:1px solid var(--line); font-weight:500;
+  }
+  .log-table tbody td{ padding:11px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  .log-table tbody tr:last-child td{ border-bottom:none; }
+  .log-table tbody tr.new-row{ animation:rowIn 0.5s ease; }
+  @keyframes rowIn{ from{ background:rgba(168,224,99,0.18); } to{ background:transparent; } }
+  .log-time{ font-family:var(--mono); color:var(--mist-dim); white-space:nowrap; }
+  .pill{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:99px;
+    font-size:0.72rem; font-weight:500; border:1px solid transparent;
+  }
+  .pill .dot{ width:6px; height:6px; border-radius:50%; }
+  .pill.ok{ background:rgba(168,224,99,0.12); color:var(--chlorophyll); border-color:rgba(168,224,99,0.3); }
+  .pill.ok .dot{ background:var(--chlorophyll); }
+  .pill.warn{ background:rgba(224,168,58,0.12); color:var(--amber-warn); border-color:rgba(224,168,58,0.3); }
+  .pill.warn .dot{ background:var(--amber-warn); }
+  .pill.alert{ background:rgba(217,105,79,0.14); color:var(--clay-alert); border-color:rgba(217,105,79,0.35); }
+  .pill.alert .dot{ background:var(--clay-alert); }
+  .log-empty{ padding:28px 10px; text-align:center; color:var(--mist-dim); font-size:0.85rem; }
+  .log-scroll{ max-height:280px; overflow-y:auto; }
+  .log-scroll::-webkit-scrollbar{ width:6px; }
+  .log-scroll::-webkit-scrollbar-thumb{ background:var(--leaf-700); border-radius:99px; }
+
+  .clear-btn{
+    background:none; border:1px solid var(--line); color:var(--mist-dim);
+    font-size:0.75rem; padding:7px 12px; border-radius:8px; cursor:pointer;
+    font-family:var(--body);
+  }
+  .clear-btn:hover{ border-color:var(--clay-alert); color:var(--clay-alert); }
+
+  .panel-head-row{ display:flex; justify-content:space-between; align-items:flex-start; }
+
+  footer{ text-align:center; margin-top:36px; font-size:0.75rem; color:var(--mist-dim); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 21C12 21 5 16.5 5 10.5C5 6.5 8 4 12 3C16 4 19 6.5 19 10.5C19 16.5 12 21 12 21Z" stroke="#eef7ef" stroke-width="1.6"/>
+          <path d="M12 21V9" stroke="#eef7ef" stroke-width="1.6"/>
+          <path d="M12 13C12 13 9 12.5 9 9.5" stroke="#eef7ef" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1>RumahKaca</h1>
+        <div class="brand-sub">Smart Greenhouse Monitoring System</div>
+      </div>
+    </div>
+    <div class="clock-block">
+      <div class="clock-label">Waktu Sistem</div>
+      <div id="liveClock">--:--:--</div>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- LEFT: INPUT PANEL -->
+    <div>
+      <div class="panel">
+        <span class="panel-eyebrow">Simulasi Sensor</span>
+        <div class="panel-title">Input Data Manual</div>
+        <p style="font-size:0.8rem;color:var(--mist-dim);margin:6px 0 20px;">Masukkan pembacaan sensor untuk memperbarui status aktuator, grafik, dan riwayat.</p>
+
+        <div class="field">
+          <label>Suhu Udara <span class="unit">°C</span></label>
+          <input type="range" id="tempRange" min="10" max="45" value="26" step="0.5">
+          <div class="readout" id="tempReadout">26.0 °C</div>
+        </div>
+
+        <div class="field">
+          <label>Kelembaban Tanah <span class="unit">%</span></label>
+          <input type="range" id="humRange" min="0" max="100" value="55" step="1">
+          <div class="readout" id="humReadout">55 %</div>
+        </div>
+
+        <div class="field">
+          <label>Intensitas Cahaya <span class="unit">lux (x100)</span></label>
+          <input type="range" id="lightRange" min="0" max="120" value="60" step="1">
+          <div class="readout" id="lightReadout">6000 lux</div>
+        </div>
+
+        <div class="field">
+          <label>Kadar CO₂ <span class="unit">ppm</span></label>
+          <input type="number" id="co2Input" min="300" max="2000" value="650" step="10">
+        </div>
+
+        <button class="btn-primary" id="submitBtn">Kirim Data Sensor</button>
+
+        <div class="auto-row">
+          <span>Simulasi otomatis tiap 4 detik</span>
+          <label class="switch">
+            <input type="checkbox" id="autoToggle">
+            <span class="switch-track"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: STATUS + CHART -->
+    <div>
+      <div class="panel">
+        <span class="panel-eyebrow">Status Aktuator</span>
+        <div class="panel-title" style="margin-bottom:16px;">Kondisi Real-time</div>
+
+        <div class="status-grid">
+          <div class="status-card ok" id="cardIrigasi">
+            <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="var(--chlorophyll)" stroke-width="1.6"><path d="M12 2.5C12 2.5 6 10 6 14.5C6 18.09 8.69 21 12 21C15.31 21 18 18.09 18 14.5C18 10 12 2.5 12 2.5Z"/></svg>
+            <div class="status-name">Pompa Irigasi</div>
+            <div class="status-value" id="irigasiValue">Standby</div>
+            <div class="status-detail" id="irigasiDetail">Menunggu data</div>
+          </div>
+
+          <div class="status-card ok" id="cardKipas">
+            <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="var(--chlorophyll)" stroke-width="1.6"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8C12 9.8 10 4 6.5 5C3.7 5.8 5 10 9.8 12"/><path d="M14.2 12C18 13.5 20 9 17 7C15.3 6 13.5 8 12 9.8"/><path d="M12 14.2C12 14.2 14 20 17.5 19C20.3 18.2 19 14 14.2 12"/></svg>
+            <div class="status-name">Kipas Ventilasi</div>
+            <div class="status-value" id="kipasValue">Standby</div>
+            <div class="status-detail" id="kipasDetail">Menunggu data</div>
+          </div>
+
+          <div class="status-card ok" id="cardLampu">
+            <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="var(--chlorophyll)" stroke-width="1.6"><path d="M9 18H15" stroke-linecap="round"/><path d="M10 21H14" stroke-linecap="round"/><path d="M12 3C8.5 3 6.5 5.5 6.5 8.5C6.5 11 8 12 9 13.5C9.5 14.3 9.7 15 9.8 16H14.2C14.3 15 14.5 14.3 15 13.5C16 12 17.5 11 17.5 8.5C17.5 5.5 15.5 3 12 3Z"/></svg>
+            <div class="status-name">Lampu Tambahan</div>
+            <div class="status-value" id="lampuValue">Standby</div>
+            <div class="status-detail" id="lampuDetail">Menunggu data</div>
+          </div>
+
+          <div class="status-card ok" id="cardCo2">
+            <svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="var(--chlorophyll)" stroke-width="1.6"><path d="M4 12H20" stroke-linecap="round"/><path d="M4 12L9 7M4 12L9 17" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 12L15 7M20 12L15 17" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="status-name">Ventilasi CO₂</div>
+            <div class="status-value" id="co2Value">Normal</div>
+            <div class="status-detail" id="co2Detail">Menunggu data</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <span class="panel-eyebrow">Visualisasi Data</span>
+        <div class="panel-title" style="margin-bottom:16px;">Grafik Sensor Real-time</div>
+        <div class="chart-wrap">
+          <canvas id="sensorChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY LOG (full width, below dashboard) -->
+  <div class="panel" style="margin-top:24px;">
+    <div class="panel-head-row" style="margin-bottom:16px;">
+      <div>
+        <span class="panel-eyebrow">Catatan Riwayat</span>
+        <div class="panel-title">History Log</div>
+      </div>
+      <button class="clear-btn" id="clearLogBtn">Hapus Riwayat</button>
+    </div>
+    <div class="log-scroll">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th style="width:110px;">Waktu</th>
+            <th>Suhu</th>
+            <th>Kelembaban</th>
+            <th>Cahaya</th>
+            <th>CO₂</th>
+            <th>Status Sistem</th>
+          </tr>
+        </thead>
+        <tbody id="logBody">
+          <tr><td colspan="6" class="log-empty">Belum ada data. Kirim data sensor untuk memulai riwayat.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>RumahKaca Monitoring — data disimulasikan secara lokal di browser, tidak terhubung ke sensor fisik.</footer>
+</div>
+
+<script>
+(function(){
+  // ---------- Clock ----------
+  function tickClock(){
+    const now = new Date();
+    document.getElementById('liveClock').textContent = now.toLocaleTimeString('id-ID', {hour12:false});
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ---------- Elements ----------
+  const tempRange = document.getElementById('tempRange');
+  const humRange = document.getElementById('humRange');
+  const lightRange = document.getElementById('lightRange');
+  const co2Input = document.getElementById('co2Input');
+  const tempReadout = document.getElementById('tempReadout');
+  const humReadout = document.getElementById('humReadout');
+  const lightReadout = document.getElementById('lightReadout');
+  const submitBtn = document.getElementById('submitBtn');
+  const autoToggle = document.getElementById('autoToggle');
+  const logBody = document.getElementById('logBody');
+  const clearLogBtn = document.getElementById('clearLogBtn');
+
+  tempRange.addEventListener('input', () => tempReadout.textContent = parseFloat(tempRange.value).toFixed(1) + ' °C');
+  humRange.addEventListener('input', () => humReadout.textContent = humRange.value + ' %');
+  lightRange.addEventListener('input', () => lightReadout.textContent = (lightRange.value * 100) + ' lux');
+
+  // ---------- Chart.js setup ----------
+  const ctx = document.getElementById('sensorChart').getContext('2d');
+  const MAX_POINTS = 12;
+  const sensorChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Suhu (°C)',
+          data: [],
+          borderColor: '#e0a83a',
+          backgroundColor: 'rgba(224,168,58,0.08)',
+          tension: 0.35,
+          fill: true,
+          pointRadius: 3,
+          pointBackgroundColor: '#e0a83a',
+          yAxisID: 'y'
+        },
+        {
+          label: 'Kelembaban (%)',
+          data: [],
+          borderColor: '#4f9d68',
+          backgroundColor: 'rgba(79,157,104,0.10)',
+          tension: 0.35,
+          fill: true,
+          pointRadius: 3,
+          pointBackgroundColor: '#4f9d68',
+          yAxisID: 'y'
+        },
+        {
+          label: 'CO₂ (ppm/10)',
+          data: [],
+          borderColor: '#8fce9e',
+          backgroundColor: 'transparent',
+          borderDash: [4,4],
+          tension: 0.35,
+          fill: false,
+          pointRadius: 2,
+          pointBackgroundColor: '#8fce9e',
+          yAxisID: 'y'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#cfe3d4', font: { family: 'Inter', size: 11 }, usePointStyle:true, boxWidth:8 }
+        },
+        tooltip: {
+          backgroundColor: '#16211a',
+          borderColor: 'rgba(207,227,212,0.2)',
+          borderWidth: 1,
+          titleColor: '#eef7ef',
+          bodyColor: '#cfe3d4'
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8fa896', font: { family: 'IBM Plex Mono', size: 10 } },
+          grid: { color: 'rgba(207,227,212,0.06)' }
+        },
+        y: {
+          ticks: { color: '#8fa896', font: { family: 'IBM Plex Mono', size: 10 } },
+          grid: { color: 'rgba(207,227,212,0.08)' },
+          suggestedMin: 0
+        }
+      }
+    }
+  });
+
+  function pushChartData(temp, hum, co2){
+    const label = new Date().toLocaleTimeString('id-ID', {hour12:false});
+    sensorChart.data.labels.push(label);
+    sensorChart.data.datasets[0].data.push(temp);
+    sensorChart.data.datasets[1].data.push(hum);
+    sensorChart.data.datasets[2].data.push(Math.round(co2/10));
+
+    if(sensorChart.data.labels.length > MAX_POINTS){
+      sensorChart.data.labels.shift();
+      sensorChart.data.datasets.forEach(ds => ds.data.shift());
+    }
+    sensorChart.update();
+  }
+
+  // ---------- Status card helper ----------
+  function setCard(cardId, valueId, detailId, level, valueText, detailText){
+    const card = document.getElementById(cardId);
+    card.classList.remove('ok','warn','alert');
+    card.classList.add(level);
+    document.getElementById(valueId).textContent = valueText;
+    document.getElementById(detailId).textContent = detailText;
+  }
+
+  // ---------- Core If-Else logic ----------
+  function evaluateAndRender(temp, hum, light, co2){
+    // 1. Pompa Irigasi — berdasarkan kelembaban tanah
+    if(hum < 30){
+      setCard('cardIrigasi','irigasiValue','irigasiDetail','alert','Menyiram Aktif','Tanah kering, kelembaban ' + hum + '%');
+    } else if(hum < 45){
+      setCard('cardIrigasi','irigasiValue','irigasiDetail','warn','Siaga','Kelembaban rendah, ' + hum + '%');
+    } else {
+      setCard('cardIrigasi','irigasiValue','irigasiDetail','ok','Standby','Kelembaban cukup, ' + hum + '%');
+    }
+
+    // 2. Kipas Ventilasi — berdasarkan suhu
+    let kipasLevel, kipasVal, kipasDet;
+    if(temp >= 34){
+      kipasLevel='alert'; kipasVal='Kecepatan Tinggi'; kipasDet='Suhu tinggi ' + temp.toFixed(1) + '°C';
+    } else if(temp >= 29){
+      kipasLevel='warn'; kipasVal='Kecepatan Sedang'; kipasDet='Suhu naik ' + temp.toFixed(1) + '°C';
+    } else {
+      kipasLevel='ok'; kipasVal='Standby'; kipasDet='Suhu normal ' + temp.toFixed(1) + '°C';
+    }
+    setCard('cardKipas','kipasValue','kipasDetail',kipasLevel,kipasVal,kipasDet);
+
+    // 3. Lampu Tambahan — berdasarkan intensitas cahaya
+    let lampuLevel, lampuVal, lampuDet;
+    if(light < 20){
+      lampuLevel='alert'; lampuVal='Menyala Penuh'; lampuDet='Cahaya sangat rendah, ' + (light*100) + ' lux';
+    } else if(light < 45){
+      lampuLevel='warn'; lampuVal='Menyala Sebagian'; lampuDet='Cahaya kurang, ' + (light*100) + ' lux';
+    } else {
+      lampuLevel='ok'; lampuVal='Padam'; lampuDet='Cahaya cukup, ' + (light*100) + ' lux';
+    }
+    setCard('cardLampu','lampuValue','lampuDetail',lampuLevel,lampuVal,lampuDet);
+
+    // 4. Ventilasi CO2 — berdasarkan kadar CO2
+    let co2Level, co2Val, co2Det;
+    if(co2 > 1200){
+      co2Level='alert'; co2Val='Bahaya'; co2Det='CO₂ ' + co2 + ' ppm, buka ventilasi';
+    } else if(co2 > 800){
+      co2Level='warn'; co2Val='Waspada'; co2Det='CO₂ ' + co2 + ' ppm, meningkat';
+    } else {
+      co2Level='ok'; co2Val='Normal'; co2Det='CO₂ ' + co2 + ' ppm, stabil';
+    }
+    setCard('cardCo2','co2Value','co2Detail',co2Level,co2Val,co2Det);
+
+    // Overall system status for the log (priority: alert > warn > ok)
+    const levels = [
+      hum < 30 ? 'alert' : (hum < 45 ? 'warn' : 'ok'),
+      kipasLevel, lampuLevel, co2Level
+    ];
+    let overall = 'ok';
+    if(levels.includes('alert')) overall = 'alert';
+    else if(levels.includes('warn')) overall = 'warn';
+
+    return overall;
+  }
+
+  const overallLabel = { ok: 'Normal', warn: 'Perlu Perhatian', alert: 'Kritis' };
+
+  // ---------- History log ----------
+  function addLogRow(temp, hum, light, co2, overall){
+    if(logBody.querySelector('.log-empty')){
+      logBody.innerHTML = '';
+    }
+    const tr = document.createElement('tr');
+    tr.className = 'new-row';
+    const time = new Date().toLocaleTimeString('id-ID', {hour12:false});
+    tr.innerHTML = `
+      <td class="log-time">${time}</td>
+      <td>${temp.toFixed(1)} °C</td>
+      <td>${hum} %</td>
+      <td>${light*100} lux</td>
+      <td>${co2} ppm</td>
+      <td><span class="pill ${overall}"><span class="dot"></span>${overallLabel[overall]}</span></td>
+    `;
+    logBody.insertBefore(tr, logBody.firstChild);
+
+    // cap log rows to keep it tidy
+    const rows = logBody.querySelectorAll('tr');
+    if(rows.length > 30){ rows[rows.length-1].remove(); }
+  }
+
+  clearLogBtn.addEventListener('click', () => {
+    logBody.innerHTML = '<tr><td colspan="6" class="log-empty">Belum ada data. Kirim data sensor untuk memulai riwayat.</td></tr>';
+  });
+
+  // ---------- Submit handler ----------
+  function handleSubmit(){
+    const temp = parseFloat(tempRange.value);
+    const hum = parseInt(humRange.value, 10);
+    const light = parseInt(lightRange.value, 10);
+    let co2 = parseInt(co2Input.value, 10);
+    if(isNaN(co2)) co2 = 650;
+    co2 = Math.max(300, Math.min(2000, co2));
+    co2Input.value = co2;
+
+    const overall = evaluateAndRender(temp, hum, light, co2);
+    pushChartData(temp, hum, co2);
+    addLogRow(temp, hum, light, co2, overall);
+  }
+
+  submitBtn.addEventListener('click', handleSubmit);
+
+  // ---------- Auto simulation ----------
+  let autoTimer = null;
+  function randomizeInputs(){
+    const newTemp = Math.max(10, Math.min(45, parseFloat(tempRange.value) + (Math.random()*6 - 3)));
+    const newHum = Math.max(0, Math.min(100, parseInt(humRange.value,10) + Math.round(Math.random()*16 - 8)));
+    const newLight = Math.max(0, Math.min(120, parseInt(lightRange.value,10) + Math.round(Math.random()*20 - 10)));
+    const newCo2 = Math.max(300, Math.min(2000, parseInt(co2Input.value,10) + Math.round(Math.random()*160 - 80)));
+
+    tempRange.value = newTemp.toFixed(1);
+    humRange.value = newHum;
+    lightRange.value = newLight;
+    co2Input.value = newCo2;
+
+    tempReadout.textContent = newTemp.toFixed(1) + ' °C';
+    humReadout.textContent = newHum + ' %';
+    lightReadout.textContent = (newLight*100) + ' lux';
+
+    handleSubmit();
+  }
+
+  autoToggle.addEventListener('change', () => {
+    if(autoToggle.checked){
+      autoTimer = setInterval(randomizeInputs, 4000);
+    } else {
+      clearInterval(autoTimer);
+    }
+  });
+
+  // ---------- Initial render ----------
+  evaluateAndRender(parseFloat(tempRange.value), parseInt(humRange.value,10), parseInt(lightRange.value,10), parseInt(co2Input.value,10));
+})();
+</script>
+
+</body>
+</html>
