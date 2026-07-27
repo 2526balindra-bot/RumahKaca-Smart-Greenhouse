@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rumah Kaca — Smart Greenhouse Dashboard</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Source+Serif+4:ital,wght@1,400&display=swap');
+
+        :root {
+          --radius: 1rem;
+        }
+
+        body {
+          font-family: 'Poppins', sans-serif;
+          background-color: #030303;
+          color: #ffffff;
+        }
+
+        .font-poppins {
+          font-family: 'Poppins', sans-serif;
+        }
+        
+        .font-serif-accent {
+          font-family: 'Source Serif 4', serif;
+        }
+
+        /* 
+           MENYEMBUNYIKAN SCROLLBAR SEPENUHNYA
+           Tapi area tetap bisa di-scroll
+        */
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none; /* Chrome, Safari, Edge */
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+        }
+
+        /* ULTRA CLEAR LIQUID GLASS (Ringan / Kartu Kecil) */
+        .liquid-glass {
+          background: rgba(255, 255, 255, 0.04);
+          background-blend-mode: overlay;
+          backdrop-filter: blur(16px) saturate(180%);
+          -webkit-backdrop-filter: blur(16px) saturate(180%);
+          box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+          position: relative;
+          overflow: hidden;
+          border: none;
+        }
+        
+        .liquid-glass::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1.2px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.15) 30%, transparent 60%, rgba(255, 255, 255, 0.2) 100%);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+
+        /* ULTRA CLEAR LIQUID GLASS STRONG (Panel Utama) */
+        .liquid-glass-strong {
+          background: rgba(255, 255, 255, 0.07);
+          background-blend-mode: overlay;
+          backdrop-filter: blur(35px) saturate(190%);
+          -webkit-backdrop-filter: blur(35px) saturate(190%);
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.35);
+          position: relative;
+          overflow: hidden;
+          border: none;
+        }
+        
+        .liquid-glass-strong::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1.5px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.2) 25%, transparent 50%, rgba(255, 255, 255, 0.15) 80%, rgba(255, 255, 255, 0.4) 100%);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+
+        /* Status Glow Styling */
+        .status-optimal {
+          background: rgba(34, 197, 94, 0.2);
+          color: #4ade80;
+          border: 1px solid rgba(74, 222, 128, 0.4);
+          box-shadow: 0 0 12px rgba(74, 222, 128, 0.2);
+        }
+        .status-warning {
+          background: rgba(234, 179, 8, 0.2);
+          color: #facc15;
+          border: 1px solid rgba(250, 204, 21, 0.4);
+          box-shadow: 0 0 12px rgba(250, 204, 21, 0.2);
+        }
+        .status-critical {
+          background: rgba(239, 68, 68, 0.2);
+          color: #f87171;
+          border: 1px solid rgba(248, 113, 113, 0.4);
+          box-shadow: 0 0 12px rgba(248, 113, 113, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-black text-white selection:bg-white/30">
+
+    <!-- Main Wrapper -->
+    <div class="relative w-full min-h-screen font-poppins text-white bg-black">
+        
+        <!-- Clear Background Video (Opacity & Saturation Ditingkatkan) -->
+        <video 
+          autoplay 
+          loop 
+          muted 
+          playsinline 
+          class="fixed inset-0 w-full h-full object-cover z-0 opacity-85 saturate-125 pointer-events-none"
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260315_073750_51473149-4350-4920-ae24-c8214286f323.mp4"
+        ></video>
+
+        <!-- Container Layout -->
+        <div class="relative z-10 w-full min-h-screen p-4 md:p-6 lg:p-8 flex flex-col lg:flex-row gap-6">
+          
+          <!-- LEFT COLUMN (Wadah Transparan untuk iPad/Mobile & Desktop) -->
+          <!-- Menambahkan class hide-scrollbar di sini -->
+          <div class="w-full lg:w-[45%] shrink-0 flex flex-col gap-6 lg:overflow-y-auto lg:max-h-[calc(100vh-4rem)] hide-scrollbar">
+            
+            <!-- PANEL 1: HEADER & SENSOR CONTROL -->
+            <div class="liquid-glass-strong rounded-3xl p-5 md:p-6 flex flex-col gap-5 shrink-0">
+              
+              <!-- Header Nav -->
+              <div class="flex items-center justify-between w-full pb-4 border-b border-white/15">
+                <div class="flex items-center gap-3">
+                  <div class="relative w-10 h-10 rounded-full overflow-hidden bg-white/15 flex items-center justify-center shrink-0 border border-white/30 shadow-lg backdrop-blur-md">
+                    <i data-lucide="sprout" class="w-5 h-5 text-emerald-300"></i>
+                  </div>
+                  <div class="flex flex-col justify-center">
+                    <span class="font-semibold text-xl tracking-tight text-white leading-tight mt-0.5">Rumah Kaca</span>
+                    <span class="text-[9px] sm:text-[10px] tracking-widest text-white/70 uppercase font-medium mt-0.5">Smart Greenhouse OS</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full border border-white/20 shadow-sm backdrop-blur-md">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_rgba(52,211,153,1)]"></span>
+                  <span class="text-[10px] sm:text-xs font-semibold text-white tracking-wide">System Live</span>
+                </div>
+              </div>
+
+              <!-- Title -->
+              <div>
+                <h1 class="text-2xl md:text-3xl font-medium tracking-tight text-white leading-snug">
+                  Sistem Kontrol & <em class="font-serif-accent italic text-white/90">Input</em> Dasbor
+                </h1>
+                <p class="text-xs text-white/70 mt-1.5 leading-relaxed">Simulasi masukan data lingkungan secara langsung untuk mengatur mikro-sistem green house.</p>
+              </div>
+
+              <!-- Form Input -->
+              <div class="flex items-center justify-between mt-1 pb-2 border-b border-white/15">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="sliders" class="w-4 h-4 text-emerald-300"></i>
+                  <h3 class="text-sm font-semibold tracking-wide text-white">Sensor Lingkungan</h3>
+                </div>
+                <button type="button" id="btnRandomize" class="text-[11px] text-white/80 hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-all backdrop-blur-md">
+                  <i data-lucide="refresh-cw" class="w-3 h-3"></i> Acak Nilai
+                </button>
+              </div>
+
+              <form id="sensorForm" class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium flex items-center gap-1">
+                    <i data-lucide="wind" class="w-3.5 h-3.5 text-white/60"></i> Udara (PPM)
+                  </label>
+                  <input type="number" id="inputPpm" value="420" min="200" max="2000" class="w-full bg-white/10 border border-white/20 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/60 focus:bg-white/15 transition-all backdrop-blur-md" required>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium flex items-center gap-1">
+                    <i data-lucide="cloud-rain" class="w-3.5 h-3.5 text-white/60"></i> Lembab (%)
+                  </label>
+                  <input type="number" id="inputHumidity" value="65" min="10" max="100" class="w-full bg-white/10 border border-white/20 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/60 focus:bg-white/15 transition-all backdrop-blur-md" required>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium flex items-center gap-1">
+                    <i data-lucide="thermometer" class="w-3.5 h-3.5 text-white/60"></i> Suhu (°C)
+                  </label>
+                  <input type="number" id="inputTemp" value="24" min="0" max="60" class="w-full bg-white/10 border border-white/20 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/60 focus:bg-white/15 transition-all backdrop-blur-md" required>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium flex items-center gap-1">
+                    <i data-lucide="droplets" class="w-3.5 h-3.5 text-white/60"></i> Tanah (%)
+                  </label>
+                  <input type="number" id="inputSoil" value="55" min="0" max="100" class="w-full bg-white/10 border border-white/20 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white/60 focus:bg-white/15 transition-all backdrop-blur-md" required>
+                </div>
+                <div class="col-span-2 mt-2">
+                  <button type="submit" class="w-full liquid-glass rounded-xl py-3 px-4 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 group border border-white/30 bg-white/10">
+                    <span class="text-xs font-semibold text-white tracking-wide">Perbarui Sensor & Trigger Aktuator</span>
+                    <i data-lucide="send" class="w-3.5 h-3.5 text-white group-hover:translate-x-1 transition-transform"></i>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- PANEL 2: STATUS & OTOMASI AKTUATOR -->
+            <div class="liquid-glass-strong rounded-3xl p-5 md:p-6 flex flex-col gap-5 shrink-0">
+              <div class="flex items-center justify-between pb-3 border-b border-white/15">
+                <div class="flex items-center gap-2">
+                  <div class="p-1.5 rounded-lg bg-white/10 border border-white/10">
+                    <i data-lucide="cpu" class="w-4 h-4 text-sky-300"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-sm font-semibold tracking-wide text-white">Status & Otomasi Aktuator</h3>
+                    <p class="text-[10px] text-white/60">Respon sistem real-time</p>
+                  </div>
+                </div>
+                <span id="overallBadge" class="status-optimal text-[10px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
+                  OPTIMAL
+                </span>
+              </div>
+
+              <!-- Grid Aktuator -->
+              <div class="grid grid-cols-3 gap-3">
+                <div class="liquid-glass rounded-2xl p-3 md:p-4 flex flex-col gap-2">
+                  <div class="flex items-center justify-between text-white/70">
+                    <i data-lucide="fan" class="w-4 h-4 text-emerald-300"></i>
+                    <span id="actuatorVentBadge" class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]"></span>
+                  </div>
+                  <div class="mt-1">
+                    <span class="text-[9px] sm:text-[10px] text-white/60 block mb-0.5 font-medium">Kipas Udara</span>
+                    <span id="actuatorVentText" class="text-xs font-semibold text-white tracking-wide">NORMAL</span>
+                  </div>
+                </div>
+
+                <div class="liquid-glass rounded-2xl p-3 md:p-4 flex flex-col gap-2">
+                  <div class="flex items-center justify-between text-white/70">
+                    <i data-lucide="cloud-rain" class="w-4 h-4 text-sky-300"></i>
+                    <span id="actuatorMistBadge" class="w-2.5 h-2.5 rounded-full bg-white/30"></span>
+                  </div>
+                  <div class="mt-1">
+                    <span class="text-[9px] sm:text-[10px] text-white/60 block mb-0.5 font-medium">Misting</span>
+                    <span id="actuatorMistText" class="text-xs font-semibold text-white tracking-wide">STANDBY</span>
+                  </div>
+                </div>
+
+                <div class="liquid-glass rounded-2xl p-3 md:p-4 flex flex-col gap-2">
+                  <div class="flex items-center justify-between text-white/70">
+                    <i data-lucide="droplets" class="w-4 h-4 text-blue-300"></i>
+                    <span id="actuatorIrrigationBadge" class="w-2.5 h-2.5 rounded-full bg-white/30"></span>
+                  </div>
+                  <div class="mt-1">
+                    <span class="text-[9px] sm:text-[10px] text-white/60 block mb-0.5 font-medium">Irigasi Pompa</span>
+                    <span id="actuatorIrrigationText" class="text-xs font-semibold text-white tracking-wide">OFF</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 3: HISTORY LOG -->
+            <div class="liquid-glass-strong rounded-3xl p-5 md:p-6 flex flex-col gap-4 shrink-0">
+              <div class="flex items-center justify-between pb-3 border-b border-white/15">
+                <div class="flex items-center gap-2">
+                  <div class="p-1.5 rounded-lg bg-white/10 border border-white/10">
+                    <i data-lucide="history" class="w-4 h-4 text-white/80"></i>
+                  </div>
+                  <h3 class="text-sm font-semibold text-white tracking-wide">Catatan Riwayat (Log)</h3>
+                </div>
+                <span id="logCount" class="text-[10px] text-white/70 font-mono bg-white/10 px-2.5 py-1 rounded-md border border-white/10">0 entri</span>
+              </div>
+
+              <!-- Tabel Scroll -->
+              <!-- Menambahkan class hide-scrollbar juga pada tabel -->
+              <div class="max-h-48 overflow-y-auto hide-scrollbar">
+                <table class="w-full text-left text-[11px]">
+                  <thead class="sticky top-0 bg-black/50 backdrop-blur-md z-10">
+                    <tr class="text-white/60 border-b border-white/15">
+                      <th class="py-2 font-medium">Waktu</th>
+                      <th class="py-2 font-medium">PPM</th>
+                      <th class="py-2 font-medium">Lembab</th>
+                      <th class="py-2 font-medium">Suhu</th>
+                      <th class="py-2 font-medium">Tanah</th>
+                      <th class="py-2 font-medium text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historyLogBody" class="divide-y divide-white/10 font-mono text-white/90">
+                    <!-- Dynamic rows inserted via JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN (4 Visualisasi Data Chart.js) -->
+          <!-- Menambahkan class hide-scrollbar di sini -->
+          <div class="flex-1 flex flex-col gap-5 lg:overflow-y-auto lg:max-h-[calc(100vh-4rem)] hide-scrollbar">
+            
+            <!-- Top Controls Bar -->
+            <div class="liquid-glass-strong rounded-2xl px-5 py-4 flex items-center justify-between shrink-0">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="activity" class="w-4 h-4 text-emerald-300"></i>
+                <span class="text-sm font-semibold text-white tracking-wide">Grafik Monitoring Real-time</span>
+              </div>
+              <div class="flex items-center gap-3 text-xs text-white/70">
+                <span class="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-full border border-white/15 backdrop-blur-md">
+                  <span class="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"></span> Sync Aktif
+                </span>
+              </div>
+            </div>
+
+            <!-- Grid Charts 2x2 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 flex-1 shrink-0 pb-6 lg:pb-0">
+              
+              <!-- Chart 1: Air Quality (PPM) -->
+              <div class="liquid-glass-strong rounded-3xl p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-white/10 border border-white/15 shadow-inner">
+                      <i data-lucide="wind" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <div>
+                      <h4 class="text-[11px] font-medium text-white/70 uppercase tracking-wider">Kualitas Udara</h4>
+                      <span id="displayPpm" class="text-xl font-semibold text-white">420 <span class="text-[10px] font-normal text-white/50">PPM</span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartPpm"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 2: Humidity (%) -->
+              <div class="liquid-glass-strong rounded-3xl p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-white/10 border border-white/15 shadow-inner">
+                      <i data-lucide="cloud-rain" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <div>
+                      <h4 class="text-[11px] font-medium text-white/70 uppercase tracking-wider">Kelembaban Udara</h4>
+                      <span id="displayHumidity" class="text-xl font-semibold text-white">65 <span class="text-[10px] font-normal text-white/50">%</span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartHumidity"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 3: Temperature (°C) -->
+              <div class="liquid-glass-strong rounded-3xl p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-white/10 border border-white/15 shadow-inner">
+                      <i data-lucide="thermometer" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <div>
+                      <h4 class="text-[11px] font-medium text-white/70 uppercase tracking-wider">Suhu Lingkungan</h4>
+                      <span id="displayTemp" class="text-xl font-semibold text-white">24 <span class="text-[10px] font-normal text-white/50">°C</span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartTemp"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 4: Soil Moisture (%) -->
+              <div class="liquid-glass-strong rounded-3xl p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-white/10 border border-white/15 shadow-inner">
+                      <i data-lucide="droplets" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <div>
+                      <h4 class="text-[11px] font-medium text-white/70 uppercase tracking-wider">Kelembaban Tanah</h4>
+                      <span id="displaySoil" class="text-xl font-semibold text-white">55 <span class="text-[10px] font-normal text-white/50">%</span></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartSoil"></canvas>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+    </div>
+
+    <!-- JavaScript Logika & Chart.js Integration -->
+    <script>
+      // Inisialisasi Lucide Icons
+      lucide.createIcons();
+
+      // Data Inisial Grafik
+      const timeLabels = ['10:00', '10:05', '10:10', '10:15', '10:20'];
+      const maxDataPoints = 10;
+
+      const initialData = {
+        ppm: [400, 410, 415, 405, 420],
+        humidity: [60, 62, 65, 63, 65],
+        temp: [23, 24, 25, 24, 24],
+        soil: [50, 52, 54, 55, 55]
+      };
+
+      // Opsi styling umum Chart.js
+      const commonChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 600, easing: 'easeOutQuart' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15, 15, 15, 0.85)',
+            titleColor: '#fff',
+            bodyColor: '#ccc',
+            borderColor: 'rgba(255, 255, 255, 0.25)',
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 10
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+            ticks: { color: 'rgba(255, 255, 255, 0.6)', font: { size: 10 } }
+          },
+          y: {
+            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+            ticks: { color: 'rgba(255, 255, 255, 0.6)', font: { size: 10 } }
+          }
+        }
+      };
+
+      // Helper pembuat Chart Line
+      function createLineChart(ctxId, label, data, color) {
+        const ctx = document.getElementById(ctxId).getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 160);
+        gradient.addColorStop(0, color.replace('1)', '0.35)'));
+        gradient.addColorStop(1, color.replace('1)', '0)'));
+
+        return new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [...timeLabels],
+            datasets: [{
+              label: label,
+              data: [...data],
+              borderColor: color,
+              borderWidth: 2,
+              pointBackgroundColor: color,
+              pointRadius: 3,
+              pointHoverRadius: 6,
+              fill: true,
+              backgroundColor: gradient,
+              tension: 0.35
+            }]
+          },
+          options: commonChartOptions
+        });
+      }
+
+      // Buat 4 instance Chart.js
+      const chartPpm = createLineChart('chartPpm', 'PPM Udara', initialData.ppm, 'rgba(255, 255, 255, 1)');
+      const chartHumidity = createLineChart('chartHumidity', 'Kelembaban %', initialData.humidity, 'rgba(74, 222, 128, 1)');
+      const chartTemp = createLineChart('chartTemp', 'Suhu °C', initialData.temp, 'rgba(250, 204, 21, 1)');
+      const chartSoil = createLineChart('chartSoil', 'Kelembaban Tanah %', initialData.soil, 'rgba(56, 189, 248, 1)');
+
+      // Variabel Penghitung Log
+      let logCounter = 0;
+
+      // LOGIKA IF-ELSE UTAMA UNTUK AKTUATOR & INDIKATOR STATUS
+      function updateGreenhouseSystem(ppm, humidity, temp, soil) {
+        let status = "OPTIMAL";
+        let statusClass = "status-optimal";
+
+        // Logic Kipas / Ventilasi: Aktif Tinggi jika Suhu > 28°C atau PPM Udara > 600
+        let ventText = "NORMAL";
+        let ventBadgeBg = "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]";
+        if (temp > 28 || ppm > 600) {
+          ventText = "AKTIF (High)";
+          ventBadgeBg = "bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.9)]";
+        }
+
+        // Logic Penyemprot Udara (Misting): Aktif jika Kelembaban Udara < 50%
+        let mistText = "STANDBY";
+        let mistBadgeBg = "bg-white/30";
+        if (humidity < 50) {
+          mistText = "AKTIF (Semprot)";
+          mistBadgeBg = "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.9)]";
+        }
+
+        // Logic Irigasi Tanah: Aktif Pompa jika Kelembaban Tanah < 40%
+        let irrigationText = "OFF";
+        let irrigationBadgeBg = "bg-white/30";
+        if (soil < 40) {
+          irrigationText = "AKTIF (Pompa)";
+          irrigationBadgeBg = "bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.9)]";
+        }
+
+        // Penentuan Overall System Status (If-Else Bertingkat)
+        if (ppm > 800 || temp > 35 || humidity < 30 || soil < 25) {
+          status = "CRITICAL";
+          statusClass = "status-critical";
+        } else if (ppm > 550 || temp > 28 || temp < 18 || humidity < 45 || soil < 35) {
+          status = "WARNING";
+          statusClass = "status-warning";
+        } else {
+          status = "OPTIMAL";
+          statusClass = "status-optimal";
+        }
+
+        // 1. Update Tampilan Indikator Status & Aktuator di DOM
+        const overallBadge = document.getElementById('overallBadge');
+        overallBadge.innerText = status;
+        overallBadge.className = `text-[10px] font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-md ${statusClass}`;
+
+        document.getElementById('actuatorVentText').innerText = ventText;
+        document.getElementById('actuatorVentBadge').className = `w-2.5 h-2.5 rounded-full ${ventBadgeBg}`;
+
+        document.getElementById('actuatorMistText').innerText = mistText;
+        document.getElementById('actuatorMistBadge').className = `w-2.5 h-2.5 rounded-full ${mistBadgeBg}`;
+
+        document.getElementById('actuatorIrrigationText').innerText = irrigationText;
+        document.getElementById('actuatorIrrigationBadge').className = `w-2.5 h-2.5 rounded-full ${irrigationBadgeBg}`;
+
+        // Update Ringkasan Angka di Atas Grafik
+        document.getElementById('displayPpm').innerHTML = `${ppm} <span class="text-[10px] font-normal text-white/50">PPM</span>`;
+        document.getElementById('displayHumidity').innerHTML = `${humidity} <span class="text-[10px] font-normal text-white/50">%</span>`;
+        document.getElementById('displayTemp').innerHTML = `${temp} <span class="text-[10px] font-normal text-white/50">°C</span>`;
+        document.getElementById('displaySoil').innerHTML = `${soil} <span class="text-[10px] font-normal text-white/50">%</span>`;
+
+        return status;
+      }
+
+      // Fungsi Penambahan Data ke Grafik Real-time
+      function addDataToChart(chart, label, newValue) {
+        chart.data.labels.push(label);
+        chart.data.datasets[0].data.push(newValue);
+        if (chart.data.labels.length > maxDataPoints) {
+          chart.data.labels.shift();
+          chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+      }
+
+      // Fungsi Tambah Riwayat Catatan (History Log)
+      function appendHistoryLog(timeStr, ppm, humidity, temp, soil, status) {
+        const tbody = document.getElementById('historyLogBody');
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-white/10 transition-colors";
+
+        let statusBadgeClass = "text-emerald-300 font-bold";
+        if (status === "WARNING") statusBadgeClass = "text-yellow-300 font-bold";
+        if (status === "CRITICAL") statusBadgeClass = "text-red-400 font-bold";
+
+        tr.innerHTML = `
+          <td class="py-2 text-white/70">${timeStr}</td>
+          <td class="py-2 font-medium">${ppm}</td>
+          <td class="py-2 font-medium">${humidity}%</td>
+          <td class="py-2 font-medium">${temp}°C</td>
+          <td class="py-2 font-medium">${soil}%</td>
+          <td class="py-2 text-right font-semibold ${statusBadgeClass}">${status}</td>
+        `;
+
+        tbody.insertBefore(tr, tbody.firstChild);
+        logCounter++;
+        document.getElementById('logCount').innerText = `${logCounter} entri`;
+      }
+
+      // Event Listener Form Submit
+      document.getElementById('sensorForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const ppm = parseInt(document.getElementById('inputPpm').value);
+        const humidity = parseInt(document.getElementById('inputHumidity').value);
+        const temp = parseInt(document.getElementById('inputTemp').value);
+        const soil = parseInt(document.getElementById('inputSoil').value);
+
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0];
+
+        // 1. Eksekusi Logika If-Else & Update Aktuator
+        const systemStatus = updateGreenhouseSystem(ppm, humidity, temp, soil);
+
+        // 2. Update 4 Grafik Real-time
+        addDataToChart(chartPpm, timeStr, ppm);
+        addDataToChart(chartHumidity, timeStr, humidity);
+        addDataToChart(chartTemp, timeStr, temp);
+        addDataToChart(chartSoil, timeStr, soil);
+
+        // 3. Tambah Entri ke History Log
+        appendHistoryLog(timeStr, ppm, humidity, temp, soil, systemStatus);
+      });
+
+      // Tombol Acak Nilai Sensor
+      document.getElementById('btnRandomize').addEventListener('click', function() {
+        document.getElementById('inputPpm').value = Math.floor(Math.random() * (900 - 350 + 1)) + 350;
+        document.getElementById('inputHumidity').value = Math.floor(Math.random() * (85 - 35 + 1)) + 35;
+        document.getElementById('inputTemp').value = Math.floor(Math.random() * (38 - 18 + 1)) + 18;
+        document.getElementById('inputSoil').value = Math.floor(Math.random() * (75 - 20 + 1)) + 20;
+
+        document.getElementById('sensorForm').dispatchEvent(new Event('submit'));
+      });
+
+      // Menjalankan evaluasi pertama kali saat halaman dibuka
+      updateGreenhouseSystem(420, 65, 24, 55);
+      appendHistoryLog("10:20:00", 420, 65, 24, 55, "OPTIMAL");
+    </script>
+</body>
+</html>
