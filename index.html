@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rumah Kaca — Smart Greenhouse Dashboard</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+          var(--apple-green): #32d74b;
+          var(--apple-orange): #ff9f0a;
+          var(--apple-red): #ff453a;
+          var(--apple-blue): #0a84ff;
+        }
+
+        body {
+          font-family: 'Inter', sans-serif;
+          background-color: #000000;
+          color: #ffffff;
+        }
+
+        /* MENYEMBUNYIKAN SCROLLBAR */
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+
+        /* =========================================
+           ULTRA REALISTIC CRYSTAL GLASS (PANEL BESAR)
+           ========================================= */
+        .real-glass {
+          position: relative;
+          /* Background nyaris bening dengan pantulan cahaya diagonal */
+          background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 40%, rgba(255,255,255,0.0) 60%, rgba(255,255,255,0.03) 100%);
+          backdrop-filter: blur(14px); /* Blur lebih rendah agar tembus pandang seperti kaca asli */
+          -webkit-backdrop-filter: blur(14px);
+          border-radius: 28px;
+          /* Shadow jatuh tebal & Shadow inner tipis */
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), 
+                      inset 0 1px 2px rgba(255, 255, 255, 0.15);
+        }
+        
+        /* Tepi 3D Kaca (Edge Highlight & Refraction) */
+        .real-glass::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1.5px; /* Ketebalan tepi kaca */
+          /* Kilauan terang di sudut kiri atas dan kanan bawah */
+          background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.05) 75%, rgba(255,255,255,0.3) 100%);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+
+        /* =========================================
+           REALISTIC GLASS CARD (KARTU KECIL DI DALAM)
+           ========================================= */
+        .real-glass-card {
+          position: relative;
+          background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border-radius: 20px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+          transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        
+        .real-glass-card::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1px;
+          background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.05) 30%, transparent 50%, rgba(255,255,255,0.2) 100%);
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+
+        /* INPUT FIELD KACA */
+        .glass-input {
+          background: rgba(0, 0, 0, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-top: 1px solid rgba(0, 0, 0, 0.6); /* Efek cekung (inset) */
+          border-radius: 14px;
+          color: rgba(255, 255, 255, 0.95);
+          transition: all 0.3s ease;
+          box-shadow: inset 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .glass-input:focus {
+          background: rgba(0, 0, 0, 0.3);
+          border-color: rgba(255, 255, 255, 0.3);
+          outline: none;
+          box-shadow: inset 0 2px 5px rgba(0,0,0,0.5), 0 0 0 2px rgba(255, 255, 255, 0.1);
+        }
+        
+        /* TOMBOL KACA */
+        .glass-btn {
+          position: relative;
+          background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-top: 1px solid rgba(255, 255, 255, 0.35); /* Tepi atas sangat terang */
+          border-radius: 14px;
+          color: white;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .glass-btn:hover {
+          background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);
+        }
+        .glass-btn:active {
+          transform: scale(0.97);
+          background: rgba(255,255,255,0.05);
+          border-top: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* TEXT SHADOW UNTUK READABILITY DI KACA BENING */
+        .text-glow {
+          text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+        }
+
+        /* STATUS PILLS */
+        .apple-status-optimal {
+          color: #32d74b;
+          background: rgba(50, 215, 75, 0.1);
+          border: 1px solid rgba(50, 215, 75, 0.3);
+        }
+        .apple-status-warning {
+          color: #ff9f0a;
+          background: rgba(255, 159, 10, 0.1);
+          border: 1px solid rgba(255, 159, 10, 0.3);
+        }
+        .apple-status-critical {
+          color: #ff453a;
+          background: rgba(255, 69, 58, 0.1);
+          border: 1px solid rgba(255, 69, 58, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-black text-white selection:bg-white/30">
+
+    <div class="relative w-full min-h-screen font-[Inter] text-white bg-black">
+        
+        <!-- Video Background - Sangat Terang dan Tajam -->
+        <video 
+          autoplay 
+          loop 
+          muted 
+          playsinline 
+          class="fixed inset-0 w-full h-full object-cover z-0 opacity-100 saturate-150 pointer-events-none"
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260315_073750_51473149-4350-4920-ae24-c8214286f323.mp4"
+        ></video>
+
+        <!-- Container Layout -->
+        <div class="relative z-10 w-full min-h-screen p-4 md:p-6 lg:p-8 flex flex-col lg:flex-row gap-6">
+          
+          <!-- LEFT COLUMN -->
+          <div class="w-full lg:w-[42%] shrink-0 flex flex-col gap-6 lg:overflow-y-auto lg:max-h-[calc(100vh-4rem)] hide-scrollbar">
+            
+            <!-- PANEL 1: HEADER & SENSOR CONTROL -->
+            <div class="real-glass p-6 md:p-7 flex flex-col gap-6 shrink-0">
+              
+              <!-- Header Nav -->
+              <div class="flex items-center justify-between w-full pb-5 border-b border-white/10">
+                <div class="flex items-center gap-3.5">
+                  <div class="relative w-11 h-11 rounded-2xl overflow-hidden bg-white/10 flex items-center justify-center shrink-0 border border-white/20 shadow-md backdrop-blur-xl">
+                    <i data-lucide="leaf" class="w-5 h-5 text-[#32d74b]"></i>
+                  </div>
+                  <div class="flex flex-col justify-center">
+                    <span class="font-semibold text-[22px] tracking-tight text-white leading-tight text-glow">Rumah Kaca</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full border border-white/10 shadow-inner backdrop-blur-md">
+                  <span class="w-2 h-2 rounded-full bg-[#32d74b] shadow-[0_0_8px_rgba(50,215,75,0.8)]"></span>
+                  <span class="text-[11px] font-medium text-white/90 tracking-wide">Connected</span>
+                </div>
+              </div>
+
+              <!-- Title -->
+              <div>
+                <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-white leading-snug text-glow">
+                  Sistem Kontrol & Input
+                </h1>
+                <p class="text-[13px] text-white/70 mt-1.5 leading-relaxed font-light text-glow">Atur parameter lingkungan untuk menyesuaikan kondisi ruang hijau secara real-time.</p>
+              </div>
+
+              <!-- Form Input -->
+              <div class="flex items-center justify-between mt-1 pb-3 border-b border-white/10">
+                <h3 class="text-[13px] font-medium tracking-wide text-white/90 text-glow">Sensor Controller</h3>
+                <button type="button" id="btnRandomize" class="text-[11px] font-medium text-white/90 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 transition-all shadow-md">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Auto
+                </button>
+              </div>
+
+              <form id="sensorForm" class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium pl-1 text-glow">Udara (PPM)</label>
+                  <input type="number" id="inputPpm" value="420" min="200" max="2000" class="w-full glass-input px-3.5 py-2.5 text-[13px]" required>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium pl-1 text-glow">Lembab (%)</label>
+                  <input type="number" id="inputHumidity" value="65" min="10" max="100" class="w-full glass-input px-3.5 py-2.5 text-[13px]" required>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium pl-1 text-glow">Suhu (°C)</label>
+                  <input type="number" id="inputTemp" value="24" min="0" max="60" class="w-full glass-input px-3.5 py-2.5 text-[13px]" required>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <label class="text-[11px] text-white/80 font-medium pl-1 text-glow">Tanah (%)</label>
+                  <input type="number" id="inputSoil" value="55" min="0" max="100" class="w-full glass-input px-3.5 py-2.5 text-[13px]" required>
+                </div>
+                <div class="col-span-2 mt-3">
+                  <button type="submit" class="w-full glass-btn py-3 px-4 flex items-center justify-center gap-2">
+                    <span class="text-[13px] font-semibold tracking-wide">Sync to Actuators</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- PANEL 2: STATUS & OTOMASI AKTUATOR -->
+            <div class="real-glass p-6 flex flex-col gap-5 shrink-0">
+              <div class="flex items-center justify-between pb-4 border-b border-white/10">
+                <h3 class="text-[14px] font-medium tracking-wide text-white/90 text-glow">Aktuator Otomatis</h3>
+                <span id="overallBadge" class="apple-status-optimal text-[11px] font-medium px-3 py-1 rounded-full uppercase tracking-wider shadow-sm backdrop-blur-md">
+                  Optimal
+                </span>
+              </div>
+
+              <!-- Grid Aktuator -->
+              <div class="grid grid-cols-3 gap-3">
+                <div class="real-glass-card p-3 md:p-4 flex flex-col gap-3">
+                  <div class="flex items-center justify-between text-white/80">
+                    <div class="p-1.5 bg-black/30 rounded-lg shadow-inner">
+                        <i data-lucide="fan" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <span id="actuatorVentBadge" class="w-2 h-2 rounded-full bg-[#32d74b] shadow-[0_0_8px_rgba(50,215,75,0.8)]"></span>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-white/70 block mb-0.5 font-medium text-glow">Ventilasi</span>
+                    <span id="actuatorVentText" class="text-[12px] font-medium text-white tracking-wide text-glow">Normal</span>
+                  </div>
+                </div>
+
+                <div class="real-glass-card p-3 md:p-4 flex flex-col gap-3">
+                  <div class="flex items-center justify-between text-white/80">
+                    <div class="p-1.5 bg-black/30 rounded-lg shadow-inner">
+                        <i data-lucide="cloud-rain" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <span id="actuatorMistBadge" class="w-2 h-2 rounded-full bg-white/30"></span>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-white/70 block mb-0.5 font-medium text-glow">Misting</span>
+                    <span id="actuatorMistText" class="text-[12px] font-medium text-white tracking-wide text-glow">Standby</span>
+                  </div>
+                </div>
+
+                <div class="real-glass-card p-3 md:p-4 flex flex-col gap-3">
+                  <div class="flex items-center justify-between text-white/80">
+                    <div class="p-1.5 bg-black/30 rounded-lg shadow-inner">
+                        <i data-lucide="droplets" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <span id="actuatorIrrigationBadge" class="w-2 h-2 rounded-full bg-white/30"></span>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-white/70 block mb-0.5 font-medium text-glow">Irigasi</span>
+                    <span id="actuatorIrrigationText" class="text-[12px] font-medium text-white tracking-wide text-glow">Off</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANEL 3: HISTORY LOG -->
+            <div class="real-glass p-6 flex flex-col gap-4 shrink-0">
+              <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 class="text-[14px] font-medium tracking-wide text-white/90 text-glow">Aktivitas Sistem</h3>
+                <span id="logCount" class="text-[11px] text-white/80 bg-black/30 px-2.5 py-1 rounded-lg border border-white/10 shadow-inner">0 items</span>
+              </div>
+
+              <!-- Tabel Scroll -->
+              <div class="max-h-48 overflow-y-auto hide-scrollbar">
+                <table class="w-full text-left text-[12px]">
+                  <thead class="sticky top-0 bg-black/30 backdrop-blur-xl z-10">
+                    <tr class="text-white/70 border-b border-white/10">
+                      <th class="py-2.5 font-medium pl-2">Waktu</th>
+                      <th class="py-2.5 font-medium">Data</th>
+                      <th class="py-2.5 font-medium text-right pr-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="historyLogBody" class="divide-y divide-white/10 text-white/90 font-mono tracking-tight text-glow">
+                    <!-- Dynamic rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN (4 Visualisasi Data Chart.js) -->
+          <div class="flex-1 flex flex-col gap-6 lg:overflow-y-auto lg:max-h-[calc(100vh-4rem)] hide-scrollbar">
+            
+            <!-- Grid Charts 2x2 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 flex-1 shrink-0 pb-6 lg:pb-0">
+              
+              <!-- Chart 1: Air Quality (PPM) -->
+              <div class="real-glass p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex flex-col">
+                    <h4 class="text-[11px] font-medium text-white/70 tracking-wider text-glow">Kualitas Udara</h4>
+                    <div class="flex items-baseline gap-1 mt-1 text-glow">
+                      <span id="displayPpm" class="text-2xl font-semibold text-white tracking-tight">420</span>
+                      <span class="text-[11px] font-medium text-white/70">PPM</span>
+                    </div>
+                  </div>
+                  <div class="w-8 h-8 rounded-full bg-black/20 border border-white/20 flex items-center justify-center shadow-inner backdrop-blur-md">
+                    <i data-lucide="wind" class="w-3.5 h-3.5 text-white"></i>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartPpm"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 2: Humidity (%) -->
+              <div class="real-glass p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex flex-col">
+                    <h4 class="text-[11px] font-medium text-white/70 tracking-wider text-glow">Kelembaban</h4>
+                    <div class="flex items-baseline gap-1 mt-1 text-glow">
+                      <span id="displayHumidity" class="text-2xl font-semibold text-white tracking-tight">65</span>
+                      <span class="text-[11px] font-medium text-white/70">%</span>
+                    </div>
+                  </div>
+                  <div class="w-8 h-8 rounded-full bg-black/20 border border-white/20 flex items-center justify-center shadow-inner backdrop-blur-md">
+                    <i data-lucide="cloud-rain" class="w-3.5 h-3.5 text-[#0a84ff]"></i>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartHumidity"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 3: Temperature (°C) -->
+              <div class="real-glass p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex flex-col">
+                    <h4 class="text-[11px] font-medium text-white/70 tracking-wider text-glow">Suhu</h4>
+                    <div class="flex items-baseline gap-1 mt-1 text-glow">
+                      <span id="displayTemp" class="text-2xl font-semibold text-white tracking-tight">24</span>
+                      <span class="text-[11px] font-medium text-white/70">°C</span>
+                    </div>
+                  </div>
+                  <div class="w-8 h-8 rounded-full bg-black/20 border border-white/20 flex items-center justify-center shadow-inner backdrop-blur-md">
+                    <i data-lucide="thermometer" class="w-3.5 h-3.5 text-[#ff9f0a]"></i>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartTemp"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 4: Soil Moisture (%) -->
+              <div class="real-glass p-5 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex flex-col">
+                    <h4 class="text-[11px] font-medium text-white/70 tracking-wider text-glow">Tanah</h4>
+                    <div class="flex items-baseline gap-1 mt-1 text-glow">
+                      <span id="displaySoil" class="text-2xl font-semibold text-white tracking-tight">55</span>
+                      <span class="text-[11px] font-medium text-white/70">%</span>
+                    </div>
+                  </div>
+                  <div class="w-8 h-8 rounded-full bg-black/20 border border-white/20 flex items-center justify-center shadow-inner backdrop-blur-md">
+                    <i data-lucide="box" class="w-3.5 h-3.5 text-[#32d74b]"></i>
+                  </div>
+                </div>
+                <div class="relative w-full h-44 md:h-48 lg:h-52">
+                  <canvas id="chartSoil"></canvas>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+    </div>
+
+    <!-- JavaScript Logika & Chart.js Integration -->
+    <script>
+      lucide.createIcons();
+
+      const timeLabels = ['10:00', '10:05', '10:10', '10:15', '10:20'];
+      const maxDataPoints = 10;
+
+      const initialData = {
+        ppm: [400, 410, 415, 405, 420],
+        humidity: [60, 62, 65, 63, 65],
+        temp: [23, 24, 25, 24, 24],
+        soil: [50, 52, 54, 55, 55]
+      };
+
+      // Chart Options disesuaikan untuk kaca bening
+      const commonChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 800, easing: 'easeOutQuart' },
+        elements: {
+            line: { tension: 0.4 }, 
+            point: { radius: 0, hitRadius: 10, hoverRadius: 6 } 
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(20, 20, 20, 0.8)',
+            titleColor: '#fff',
+            bodyColor: 'rgba(255,255,255,0.9)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 12,
+            displayColors: false,
+            titleFont: { family: 'Inter', size: 12, weight: '600' },
+            bodyFont: { family: 'Inter', size: 12 }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: 'rgba(255, 255, 255, 0.7)', font: { family: 'Inter', size: 10 } }
+          },
+          y: {
+            border: { display: false },
+            grid: { color: 'rgba(255, 255, 255, 0.1)', borderDash: [4, 4] },
+            ticks: { color: 'rgba(255, 255, 255, 0.7)', font: { family: 'Inter', size: 10 }, maxTicksLimit: 5 }
+          }
+        }
+      };
+
+      function createLineChart(ctxId, label, data, colorHex) {
+        const ctx = document.getElementById(ctxId).getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+        
+        const getRGB = (hex) => {
+            let r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+            return `${r}, ${g}, ${b}`;
+        };
+        const rgb = getRGB(colorHex);
+
+        gradient.addColorStop(0, `rgba(${rgb}, 0.4)`);
+        gradient.addColorStop(1, `rgba(${rgb}, 0.0)`);
+
+        return new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [...timeLabels],
+            datasets: [{
+              label: label,
+              data: [...data],
+              borderColor: colorHex,
+              borderWidth: 3,
+              pointBackgroundColor: '#fff',
+              pointBorderColor: colorHex,
+              pointBorderWidth: 2,
+              fill: true,
+              backgroundColor: gradient
+            }]
+          },
+          options: commonChartOptions
+        });
+      }
+
+      const chartPpm = createLineChart('chartPpm', 'PPM Udara', initialData.ppm, '#ffffff');
+      const chartHumidity = createLineChart('chartHumidity', 'Kelembaban %', initialData.humidity, '#0a84ff');
+      const chartTemp = createLineChart('chartTemp', 'Suhu °C', initialData.temp, '#ff9f0a');
+      const chartSoil = createLineChart('chartSoil', 'Tanah %', initialData.soil, '#32d74b');
+
+      let logCounter = 0;
+
+      function updateGreenhouseSystem(ppm, humidity, temp, soil) {
+        let status = "Optimal";
+        let statusClass = "apple-status-optimal";
+
+        let ventText = "Normal";
+        let ventBadgeBg = "bg-[#32d74b] shadow-[0_0_8px_rgba(50,215,75,0.8)]";
+        if (temp > 28 || ppm > 600) {
+          ventText = "Aktif (High)";
+          ventBadgeBg = "bg-[#ff9f0a] shadow-[0_0_8px_rgba(255,159,10,0.8)]";
+        }
+
+        let mistText = "Standby";
+        let mistBadgeBg = "bg-white/30";
+        if (humidity < 50) {
+          mistText = "Semprot";
+          mistBadgeBg = "bg-[#0a84ff] shadow-[0_0_8px_rgba(10,132,255,0.8)]";
+        }
+
+        let irrigationText = "Off";
+        let irrigationBadgeBg = "bg-white/30";
+        if (soil < 40) {
+          irrigationText = "Pompa On";
+          irrigationBadgeBg = "bg-[#0a84ff] shadow-[0_0_8px_rgba(10,132,255,0.8)]";
+        }
+
+        if (ppm > 800 || temp > 35 || humidity < 30 || soil < 25) {
+          status = "Critical";
+          statusClass = "apple-status-critical";
+        } else if (ppm > 550 || temp > 28 || temp < 18 || humidity < 45 || soil < 35) {
+          status = "Warning";
+          statusClass = "apple-status-warning";
+        } else {
+          status = "Optimal";
+          statusClass = "apple-status-optimal";
+        }
+
+        const overallBadge = document.getElementById('overallBadge');
+        overallBadge.innerText = status;
+        overallBadge.className = `text-[11px] font-medium px-3 py-1 rounded-full uppercase tracking-wider shadow-sm backdrop-blur-md ${statusClass}`;
+
+        document.getElementById('actuatorVentText').innerText = ventText;
+        document.getElementById('actuatorVentBadge').className = `w-2 h-2 rounded-full ${ventBadgeBg}`;
+
+        document.getElementById('actuatorMistText').innerText = mistText;
+        document.getElementById('actuatorMistBadge').className = `w-2 h-2 rounded-full ${mistBadgeBg}`;
+
+        document.getElementById('actuatorIrrigationText').innerText = irrigationText;
+        document.getElementById('actuatorIrrigationBadge').className = `w-2 h-2 rounded-full ${irrigationBadgeBg}`;
+
+        document.getElementById('displayPpm').innerText = ppm;
+        document.getElementById('displayHumidity').innerText = humidity;
+        document.getElementById('displayTemp').innerText = temp;
+        document.getElementById('displaySoil').innerText = soil;
+
+        return status;
+      }
+
+      function addDataToChart(chart, label, newValue) {
+        chart.data.labels.push(label);
+        chart.data.datasets[0].data.push(newValue);
+        if (chart.data.labels.length > maxDataPoints) {
+          chart.data.labels.shift();
+          chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+      }
+
+      function appendHistoryLog(timeStr, ppm, humidity, temp, soil, status) {
+        const tbody = document.getElementById('historyLogBody');
+        const tr = document.createElement('tr');
+        
+        let statusColor = "text-[#32d74b]";
+        if (status === "Warning") statusColor = "text-[#ff9f0a]";
+        if (status === "Critical") statusColor = "text-[#ff453a]";
+
+        tr.innerHTML = `
+          <td class="py-2.5 pl-2 text-white/70 text-[11px]">${timeStr}</td>
+          <td class="py-2.5 text-[11px] text-white/90">${ppm}p • ${humidity}% • ${temp}°</td>
+          <td class="py-2.5 pr-2 text-right font-medium text-[11px] ${statusColor}">${status}</td>
+        `;
+
+        tbody.insertBefore(tr, tbody.firstChild);
+        logCounter++;
+        document.getElementById('logCount').innerText = `${logCounter} items`;
+      }
+
+      document.getElementById('sensorForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const ppm = parseInt(document.getElementById('inputPpm').value);
+        const humidity = parseInt(document.getElementById('inputHumidity').value);
+        const temp = parseInt(document.getElementById('inputTemp').value);
+        const soil = parseInt(document.getElementById('inputSoil').value);
+
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0].slice(0, 5); 
+
+        const systemStatus = updateGreenhouseSystem(ppm, humidity, temp, soil);
+
+        addDataToChart(chartPpm, timeStr, ppm);
+        addDataToChart(chartHumidity, timeStr, humidity);
+        addDataToChart(chartTemp, timeStr, temp);
+        addDataToChart(chartSoil, timeStr, soil);
+
+        appendHistoryLog(timeStr, ppm, humidity, temp, soil, systemStatus);
+      });
+
+      document.getElementById('btnRandomize').addEventListener('click', function() {
+        document.getElementById('inputPpm').value = Math.floor(Math.random() * (900 - 350 + 1)) + 350;
+        document.getElementById('inputHumidity').value = Math.floor(Math.random() * (85 - 35 + 1)) + 35;
+        document.getElementById('inputTemp').value = Math.floor(Math.random() * (38 - 18 + 1)) + 18;
+        document.getElementById('inputSoil').value = Math.floor(Math.random() * (75 - 20 + 1)) + 20;
+
+        document.getElementById('sensorForm').dispatchEvent(new Event('submit'));
+      });
+
+      // Init
+      updateGreenhouseSystem(420, 65, 24, 55);
+      appendHistoryLog("10:20", 420, 65, 24, 55, "Optimal");
+    </script>
+</body>
+</html>
